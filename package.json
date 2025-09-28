@@ -1,6 +1,6 @@
 {
   "name": "am-i-doomed",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "A dramatic security scanner that checks your Node.js project for known vulnerabilities using OSV database",
   "bin": {
     "am-i-doomed": "./dist/index.js"
