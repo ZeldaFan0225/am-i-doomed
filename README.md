@@ -172,12 +172,6 @@ Contributions are welcome. Open an issue first to discuss significant changes. W
 
 ---
 
-## License
-
-This project is provided under the ISC license (see LICENSE file).
-
----
-
 ## Very Important Disclaimer (Read Carefully)
 
 PLEASE READ THIS DISCLAIMER CAREFULLY BEFORE USING THIS SOFTWARE.
