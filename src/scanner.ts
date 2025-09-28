@@ -24,15 +24,15 @@ export class AmIDoomedScanner {
         }
 
         try {
-            // Discover all packages
-            const packages = await this.packageDiscovery.discoverPackages(projectPath);
+            // Discover all packages and pass the silent flag so discovery suppresses logs when requested
+            const packages = await this.packageDiscovery.discoverPackages(projectPath, !!options.silent);
 
             if (!options.silent) {
                 console.log(`📦 Found ${packages.size} unique packages\n`);
             }
 
-            // Query OSV for vulnerabilities
-            const vulnerabilities = await this.osvClient.queryVulnerabilities(Array.from(packages.values()));
+            // Query OSV for vulnerabilities and pass silent so network logs are suppressed
+            const vulnerabilities = await this.osvClient.queryVulnerabilities(Array.from(packages.values()), !!options.silent);
 
             // Create scan result
             const result: ScanResult = {
@@ -40,7 +40,7 @@ export class AmIDoomedScanner {
                 vulnerabilities,
                 totalPackages: packages.size,
                 vulnerablePackages: vulnerabilities.length,
-                totalVulnerabilities: vulnerabilities.reduce((sum, v) => sum + v.vulns.length, 0)
+                totalVulnerabilities: vulnerabilities.reduce((sum: number, v: any) => sum + v.vulns.length, 0)
             };
 
             return result;

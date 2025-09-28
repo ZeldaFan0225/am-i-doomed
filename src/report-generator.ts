@@ -100,7 +100,7 @@ export class ReportGenerator {
         if (result.vulnerabilities.length > 0) {
             lines.push('\n💀 You might be doomed! Consider updating vulnerable packages.');
         } else {
-            lines.push('\n✅ You are NOT doomed today! Stay vigilant.');
+            lines.push('\n✅  You are NOT doomed today! Stay vigilant.');
         }
 
         return lines.join('\n');
@@ -167,7 +167,7 @@ export class ReportGenerator {
         if (result.vulnerabilities.length > 0) {
             console.log('\n💀 You might be doomed! Consider updating vulnerable packages.');
         } else {
-            console.log('\n✅ You are NOT doomed today! Stay vigilant.');
+            console.log('\n✅  You are NOT doomed today! Stay vigilant.');
         }
     }
 }

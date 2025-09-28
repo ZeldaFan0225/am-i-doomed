@@ -7,19 +7,19 @@ export class PackageDiscovery {
     private packageLockNames: Set<string> = new Set();
     private packageLockMap: Map<string, PackageInfo> = new Map();
 
-    async discoverPackages(projectPath: string): Promise<Map<string, PackageInfo>> {
+    async discoverPackages(projectPath: string, silent = false): Promise<Map<string, PackageInfo>> {
         this.packages.clear();
 
         // Read package-lock.json first
-        await this.readPackageLock(projectPath);
+        await this.readPackageLock(projectPath, silent);
 
         // Then scan node_modules for additional packages
-        await this.readNodeModules(projectPath);
+        await this.readNodeModules(projectPath, silent);
 
         return this.packages;
     }
 
-    private async readPackageLock(projectPath: string): Promise<void> {
+    private async readPackageLock(projectPath: string, silent = false): Promise<void> {
         const packageLockPath = path.join(projectPath, 'package-lock.json');
 
         try {
@@ -52,9 +52,9 @@ export class PackageDiscovery {
             // Record names that came from package-lock so node_modules won't overwrite them
             this.packageLockMap = new Map(this.packages);
             this.packageLockNames = new Set(this.packageLockMap.keys());
-            console.log(`✅  Read package-lock.json (${this.packages.size} packages)`);
+            if (!silent) console.log(`✅  Read package-lock.json (${this.packages.size} packages)`);
         } catch (error: any) {
-            console.log('⚠️  Could not read package-lock.json:', error.message);
+            if (!silent) console.log('⚠️  Could not read package-lock.json:', error.message);
         }
     }
 
@@ -85,7 +85,7 @@ export class PackageDiscovery {
         return parts[1] || parts[0];
     }
 
-    private async readNodeModules(projectPath: string): Promise<void> {
+    private async readNodeModules(projectPath: string, silent = false): Promise<void> {
         const nodeModulesPath = path.join(projectPath, 'node_modules');
 
         try {
@@ -116,9 +116,9 @@ export class PackageDiscovery {
                 this.packages.set(name, info);
             }
 
-            console.log(`✅  Scanned node_modules (+${addedCount} additional packages)`);
+            if (!silent) console.log(`✅  Scanned node_modules (+${addedCount} additional packages)`);
         } catch (error: any) {
-            console.log('⚠️  Could not read node_modules:', error.message);
+            if (!silent) console.log('⚠️  Could not read node_modules:', error.message);
         }
     }
 

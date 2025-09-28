@@ -4,11 +4,11 @@ export class OSVClient {
     private static readonly BASE_URL = 'https://api.osv.dev';
     private static readonly BATCH_SIZE = 100;
 
-    async queryVulnerabilities(packages: PackageInfo[]): Promise<VulnerabilityResult[]> {
+    async queryVulnerabilities(packages: PackageInfo[], silent = false): Promise<VulnerabilityResult[]> {
         const vulnerabilities: VulnerabilityResult[] = [];
         const packageArray = Array.from(packages);
 
-        console.log('🌐 Querying OSV database for vulnerabilities...\n');
+        if (!silent) console.log('🌐 Querying OSV database for vulnerabilities...\n');
 
         // Process packages in batches
         for (let i = 0; i < packageArray.length; i += OSVClient.BATCH_SIZE) {
@@ -16,7 +16,8 @@ export class OSVClient {
             const batchResults = await this.queryBatch(
                 batch,
                 Math.floor(i / OSVClient.BATCH_SIZE) + 1,
-                Math.ceil(packageArray.length / OSVClient.BATCH_SIZE)
+                Math.ceil(packageArray.length / OSVClient.BATCH_SIZE),
+                silent
             );
             vulnerabilities.push(...batchResults);
         }
@@ -27,7 +28,8 @@ export class OSVClient {
     private async queryBatch(
         packages: PackageInfo[],
         batchNum: number,
-        totalBatches: number
+        totalBatches: number,
+        silent = false
     ): Promise<VulnerabilityResult[]> {
         const vulnerabilities: VulnerabilityResult[] = [];
 
@@ -40,7 +42,7 @@ export class OSVClient {
         }));
 
         try {
-            console.log(`  Batch ${batchNum}/${totalBatches}: Checking ${packages.length} packages...`);
+            if (!silent) console.log(`  Batch ${batchNum}/${totalBatches}: Checking ${packages.length} packages...`);
 
             const response = await fetch(`${OSVClient.BASE_URL}/v1/querybatch`, {
                 method: 'POST',
@@ -74,10 +76,10 @@ export class OSVClient {
             }
 
             // Handle pagination for packages that have more results
-            await this.handleBatchPagination(packages, data.results, vulnerabilities);
+            await this.handleBatchPagination(packages, data.results, vulnerabilities, silent);
 
         } catch (error: any) {
-            console.error(`❌ Error querying batch ${batchNum}: ${error?.message ?? String(error)}`);
+            if (!silent) console.error(`❌ Error querying batch ${batchNum}: ${error?.message ?? String(error)}`);
         }
 
         return vulnerabilities;
@@ -86,7 +88,8 @@ export class OSVClient {
     private async handleBatchPagination(
         packages: PackageInfo[],
         results: OSVResult[],
-        vulnerabilities: VulnerabilityResult[]
+        vulnerabilities: VulnerabilityResult[],
+        silent = false
     ): Promise<void> {
         // Collect packages that need pagination
         const paginationQueries: OSVQuery[] = [];
@@ -131,7 +134,7 @@ export class OSVClient {
                 });
 
                 if (!response.ok) {
-                    console.error(`Error in pagination request: ${response.statusText}`);
+                    if (!silent) console.error(`Error in pagination request: ${response.statusText}`);
                     break;
                 }
                 const data: OSVBatchResponse = await response.json() as OSVBatchResponse;
@@ -162,7 +165,7 @@ export class OSVClient {
                 hasMorePages = nextQueries.length > 0;
 
             } catch (error: any) {
-                console.error(`Error handling batch pagination: ${error?.message ?? String(error)}`);
+                if (!silent) console.error(`Error handling batch pagination: ${error?.message ?? String(error)}`);
                 break;
             }
         }

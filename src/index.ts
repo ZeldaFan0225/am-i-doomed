@@ -16,41 +16,104 @@ export async function scanPackage(projectPath?: string, options: Omit<ScanOption
 async function runCLI(): Promise<void> {
     const args = process.argv.slice(2);
 
-    // Parse arguments
-    const helpFlags = ['--help', '-h'];
-    const jsonFlags = ['--json', '-j'];
-    const silentFlags = ['--silent', '-s'];
-    const outputFlags = ['--output', '-o'];
+    // Generalized argument parsing: support --flag=value, --flag value, -f value, and combined short flags.
+    const flagDefs = [
+        { name: 'help', aliases: ['--help', '-h'], type: 'boolean' as const },
+        { name: 'json', aliases: ['--json', '-j'], type: 'boolean' as const },
+        { name: 'silent', aliases: ['--silent', '-s'], type: 'boolean' as const },
+        { name: 'output', aliases: ['--output', '-o'], type: 'value' as const }
+    ];
 
-    if (args.some(arg => helpFlags.includes(arg))) {
+    if (args.some(arg => ['--help', '-h'].includes(arg))) {
         showHelp();
         return;
     }
 
-    // Extract options
-    const jsonOutput = args.some(arg => jsonFlags.includes(arg));
-    const silent = args.some(arg => silentFlags.includes(arg));
-
-    // Extract output path (supports --output <file>, -o <file>, or --output=path)
+    let jsonOutput = false;
+    let silent = false;
     let outputPath: string | undefined;
+    let projectPath: string | undefined;
+
     for (let i = 0; i < args.length; i++) {
         const a = args[i];
-        if (outputFlags.includes(a)) {
-            if (i + 1 < args.length) {
-                outputPath = args[i + 1];
+
+        // Long flags: --name or --name=value
+        if (a.startsWith('--')) {
+            const eq = a.indexOf('=');
+            const namePart = eq >= 0 ? a.slice(0, eq) : a;
+            const valPart = eq >= 0 ? a.slice(eq + 1) : undefined;
+            const def = flagDefs.find(f => f.aliases.includes(namePart));
+
+            if (def) {
+                if (def.type === 'boolean') {
+                    if (valPart !== undefined) {
+                        const v = valPart.toLowerCase();
+                        const b = v === 'true' || !v;
+                        if (def.name === 'json') jsonOutput = b;
+                        if (def.name === 'silent') silent = b;
+                    } else {
+                        if (def.name === 'json') jsonOutput = true;
+                        if (def.name === 'silent') silent = true;
+                    }
+                } else if (def.type === 'value') {
+                    if (valPart !== undefined) {
+                        if (def.name === 'output') outputPath = valPart;
+                    } else if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+                        if (def.name === 'output') outputPath = args[i + 1];
+                        i++; // consume value
+                    }
+                }
+                continue;
             }
-            break;
+
+            // unknown long flag: skip
+            continue;
         }
 
-        // handle --output=path
-        if (a.startsWith('--output=')) {
-            outputPath = a.split('=')[1];
-            break;
+        // Short flags: -j, -s, -o value, combined like -js
+        if (a.startsWith('-')) {
+            const chars = a.slice(1);
+            let consumedValue = false;
+            for (let pos = 0; pos < chars.length; pos++) {
+                const ch = chars[pos];
+                const flag = `-${ch}`;
+                const def = flagDefs.find(f => f.aliases.includes(flag));
+                if (!def) continue;
+
+                if (def.type === 'boolean') {
+                    if (def.name === 'json') jsonOutput = true;
+                    if (def.name === 'silent') silent = true;
+                    continue;
+                }
+
+                if (def.type === 'value') {
+                    // attached value like -oreport.txt
+                    const rest = chars.slice(pos + 1);
+                    if (rest.length > 0) {
+                        if (def.name === 'output') outputPath = rest;
+                        consumedValue = true;
+                        break;
+                    }
+
+                    // value as next token: -o report.txt
+                    if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+                        if (def.name === 'output') outputPath = args[i + 1];
+                        i++; // consume value
+                        consumedValue = true;
+                    }
+                    break;
+                }
+            }
+            if (consumedValue) continue;
+            continue;
         }
+
+        // positional arg -> project path (first only)
+        if (!projectPath) projectPath = a;
+        // ignore extras
     }
 
-    // Extract project path (first non-flag argument)
-    const projectPath = args.find(arg => !arg.startsWith('--') && !arg.startsWith('-')) || process.cwd();
+    projectPath = projectPath || process.cwd();
 
     if (!silent) {
         console.log('💀 AM I DOOMED? - Security Vulnerability Scanner');

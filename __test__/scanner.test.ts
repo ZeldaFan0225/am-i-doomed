@@ -51,8 +51,8 @@ describe('AmIDoomedScanner', () => {
 
             const result = await scanner.scan({ projectPath: '/test/project' });
 
-            expect(mockPackageDiscovery.discoverPackages).toHaveBeenCalledWith('/test/project');
-            expect(mockOSVClient.queryVulnerabilities).toHaveBeenCalledWith(mockPackages);
+            expect(mockPackageDiscovery.discoverPackages).toHaveBeenCalledWith('/test/project', false);
+            expect(mockOSVClient.queryVulnerabilities).toHaveBeenCalledWith(mockPackages, false);
 
             expect(result).toEqual({
                 packages: mockPackagesMap,
@@ -101,7 +101,7 @@ describe('AmIDoomedScanner', () => {
 
             await scanner.scan();
 
-            expect(mockPackageDiscovery.discoverPackages).toHaveBeenCalledWith('/current/dir');
+            expect(mockPackageDiscovery.discoverPackages).toHaveBeenCalledWith('/current/dir', false);
 
             // Restore original
             // @ts-ignore
