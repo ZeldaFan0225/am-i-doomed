@@ -1,0 +1,14 @@
+src/
+__tests__/
+*.ts
+*.test.js
+*.test.ts
+jest.config.js
+node_modules/
+tsconfig.json
+.github/
+
+# Don't ignore dist and bin
+!dist/
+!bin/
+!README.md

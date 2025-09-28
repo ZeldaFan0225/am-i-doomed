@@ -1,0 +1,46 @@
+{
+  "name": "am-i-doomed",
+  "version": "0.0.0",
+  "description": "A dramatic security scanner that checks your Node.js project for known vulnerabilities using OSV database",
+  "bin": {
+    "am-i-doomed": "./dist/index.js"
+  },
+  "keywords": [
+    "node.js",
+    "security",
+    "vulnerability",
+    "scanner"
+  ],
+  "homepage": "https://github.com/ZeldaFan0225/am-i-doomed#readme",
+  "bugs": {
+    "url": "https://github.com/ZeldaFan0225/am-i-doomed/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZeldaFan0225/am-i-doomed.git"
+  },
+  "license": "ISC",
+  "author": "ZeldaFan0225",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.5.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.4",
+    "typescript": "^5.9.2"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ]
+}
