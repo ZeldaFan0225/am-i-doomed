@@ -53,9 +53,9 @@ export const mockPackageJson = {
 
 // Mock packages
 export const mockPackages: PackageInfo[] = [
-    { name: 'lodash', version: '4.17.19', source: 'package-lock' },
-    { name: 'express', version: '4.18.0', source: 'package-lock' },
-    { name: '@types/node', version: '18.0.0', source: 'node_modules' }
+    { name: 'lodash', version: '4.17.19', source: 'package-lock', reason: 'package-lock.json -> packages["node_modules/lodash"]' },
+    { name: 'express', version: '4.18.0', source: 'package-lock', reason: 'package-lock.json -> packages["node_modules/express"]' },
+    { name: '@types/node', version: '18.0.0', source: 'node_modules', reason: 'package.json -> node_modules/@types/node/package.json' }
 ];
 
 // Mock OSV responses
@@ -141,37 +141,66 @@ export function mockFetchError(error: string) {
 }
 
 // File system mocks
+type MockEntry = { match: string; type: 'file' | 'directory'; content?: string };
+
 export function createMockFS() {
+    const store: MockEntry[] = [];
+
+    const normalizePath = (value: string) => value.replace(/\\/g, '/').replace(/^\/+/, '/');
+
+    const findEntry = (filePath: string): MockEntry | undefined => {
+        const normalized = normalizePath(filePath);
+        for (let i = store.length - 1; i >= 0; i--) {
+            if (normalized === store[i].match) {
+                return store[i];
+            }
+        }
+        return undefined;
+    };
+
     return {
-        readFile: jest.fn(),
+        __store: store,
+        readFile: jest.fn(async (filePath: string) => {
+            const entry = findEntry(filePath);
+            if (entry && entry.type === 'file' && entry.content !== undefined) {
+                return entry.content;
+            }
+            throw new Error('File not found');
+        }),
         readdir: jest.fn(),
-        access: jest.fn()
+        access: jest.fn(async (filePath: string) => {
+            const entry = findEntry(filePath);
+            if (!entry) {
+                throw new Error('File not found');
+            }
+        }),
+        stat: jest.fn(async (filePath: string) => {
+            const entry = findEntry(filePath);
+            if (!entry) {
+                throw new Error('File not found');
+            }
+            return {
+                isDirectory: () => entry.type === 'directory',
+                isFile: () => entry.type === 'file'
+            };
+        }),
+        realpath: jest.fn(async (targetPath: string) => targetPath)
     };
 }
 
-export function mockFileExists(mockFS: any, path: string, content?: string) {
-    mockFS.access.mockImplementation((filePath: string) => {
-        if (filePath.includes(path)) {
-            return Promise.resolve();
-        }
-        return Promise.reject(new Error('File not found'));
-    });
-
-    if (content !== undefined) {
-        mockFS.readFile.mockImplementation((filePath: string) => {
-            if (filePath.includes(path)) {
-                return Promise.resolve(content);
-            }
-            return Promise.reject(new Error('File not found'));
-        });
-    }
+export function mockFileExists(mockFS: any, path: string, content?: string, type?: 'file' | 'directory') {
+    const entryType: 'file' | 'directory' = type ?? (content !== undefined ? 'file' : 'directory');
+    const store = mockFS.__store as MockEntry[];
+    const normalized = path.replace(/\\/g, '/').replace(/^\/+/, '/');
+    store.push({ match: normalized, type: entryType, content });
 }
 
 export function mockFileNotExists(mockFS: any, path: string) {
-    mockFS.access.mockImplementation((filePath: string) => {
-        if (filePath.includes(path)) {
-            return Promise.reject(new Error('File not found'));
+    const store = mockFS.__store as MockEntry[];
+    const normalized = path.replace(/\\/g, '/').replace(/^\/+/, '/');
+    for (let i = store.length - 1; i >= 0; i--) {
+        if (store[i].match === normalized) {
+            store.splice(i, 1);
         }
-        return Promise.resolve();
-    });
+    }
 }

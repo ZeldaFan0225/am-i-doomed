@@ -59,6 +59,7 @@ export class ReportGenerator {
             for (const { package: pkg, vulns } of sortedVulns) {
                 lines.push(`📦 ${pkg.name}@${pkg.version}`);
                 lines.push(`   Source: ${pkg.source}`);
+                lines.push(`   Reason: ${pkg.reason}`);
                 lines.push(`   Vulnerabilities: ${vulns.length}`);
 
                 const displayVulns = vulns.slice(0, 5);
@@ -121,6 +122,7 @@ export class ReportGenerator {
         for (const { package: pkg, vulns } of sortedVulns) {
             console.log(`📦 ${pkg.name}@${pkg.version}`);
             console.log(`   Source: ${pkg.source}`);
+            console.log(`   Reason: ${pkg.reason}`);
             console.log(`   Vulnerabilities: ${vulns.length}`);
 
             // Show first few vulnerability IDs

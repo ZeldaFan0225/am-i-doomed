@@ -2,6 +2,7 @@ export interface PackageInfo {
     name: string;
     version: string;
     source: 'package-lock' | 'node_modules';
+    reason: string;
 }
 
 export interface PackageLockPackageInfo {

@@ -13,6 +13,7 @@ jest.mock('fs/promises');
 import fs from 'fs/promises';
 
 describe('PackageDiscovery', () => {
+    const projectPath = '/test/project';
     let packageDiscovery: PackageDiscovery;
     let mockFS: any;
 
@@ -24,60 +25,68 @@ describe('PackageDiscovery', () => {
         (fs.readFile as jest.Mock) = mockFS.readFile;
         (fs.readdir as jest.Mock) = mockFS.readdir;
         (fs.access as jest.Mock) = mockFS.access;
+        (fs.stat as jest.Mock) = mockFS.stat;
+        (fs.realpath as jest.Mock) = mockFS.realpath;
     });
 
     describe('discoverPackages', () => {
         it('should discover packages from package-lock.json v3', async () => {
-            mockFileExists(mockFS, 'package-lock.json', JSON.stringify(mockPackageLockV3));
-            mockFileNotExists(mockFS, 'node_modules');
+            mockFileExists(mockFS, `${projectPath}/package-lock.json`, JSON.stringify(mockPackageLockV3));
+            mockFileNotExists(mockFS, `${projectPath}/node_modules`);
 
             const packages = await packageDiscovery.discoverPackages('/test/project');
 
             expect(packages.size).toBe(3);
-            expect(packages.get('lodash')).toEqual({
+            expect(packages.get('lodash')).toEqual(expect.objectContaining({
                 name: 'lodash',
                 version: '4.17.19',
-                source: 'package-lock'
-            });
-            expect(packages.get('express')).toEqual({
+                source: 'package-lock',
+                reason: expect.stringContaining('package-lock.json -> packages["node_modules/lodash"]')
+            }));
+            expect(packages.get('express')).toEqual(expect.objectContaining({
                 name: 'express',
                 version: '4.18.0',
-                source: 'package-lock'
-            });
-            expect(packages.get('@types/node')).toEqual({
+                source: 'package-lock',
+                reason: expect.stringContaining('package-lock.json -> packages["node_modules/express"]')
+            }));
+            expect(packages.get('@types/node')).toEqual(expect.objectContaining({
                 name: '@types/node',
                 version: '18.0.0',
-                source: 'package-lock'
-            });
+                source: 'package-lock',
+                reason: expect.stringContaining('package-lock.json -> packages["node_modules/@types/node"]')
+            }));
         });
 
         it('should discover packages from package-lock.json v1', async () => {
-            mockFileExists(mockFS, 'package-lock.json', JSON.stringify(mockPackageLockV1));
-            mockFileNotExists(mockFS, 'node_modules');
+            mockFileExists(mockFS, `${projectPath}/package-lock.json`, JSON.stringify(mockPackageLockV1));
+            mockFileNotExists(mockFS, `${projectPath}/node_modules`);
 
             const packages = await packageDiscovery.discoverPackages('/test/project');
 
             expect(packages.size).toBe(3);
-            expect(packages.get('lodash')).toEqual({
+            expect(packages.get('lodash')).toEqual(expect.objectContaining({
                 name: 'lodash',
                 version: '4.17.19',
-                source: 'package-lock'
-            });
-            expect(packages.get('express')).toEqual({
+                source: 'package-lock',
+                reason: expect.stringContaining('package-lock.json -> dependencies["lodash"]')
+            }));
+            expect(packages.get('express')).toEqual(expect.objectContaining({
                 name: 'express',
                 version: '4.18.0',
-                source: 'package-lock'
-            });
-            expect(packages.get('express/body-parser')).toEqual({
-                name: 'express/body-parser',
+                source: 'package-lock',
+                reason: expect.stringContaining('package-lock.json -> dependencies["express"]')
+            }));
+            expect(packages.get('body-parser')).toEqual(expect.objectContaining({
+                name: 'body-parser',
                 version: '1.19.0',
-                source: 'package-lock'
-            });
+                source: 'package-lock',
+                reason: expect.stringContaining('package-lock.json -> dependencies["express"]["dependencies"]["body-parser"]')
+            }));
         });
 
         it('should handle missing package-lock.json gracefully', async () => {
-            mockFileNotExists(mockFS, 'package-lock.json');
-            mockFileNotExists(mockFS, 'node_modules');
+            mockFileNotExists(mockFS, `${projectPath}/package-lock.json`);
+            mockFileNotExists(mockFS, `${projectPath}/node_modules`);
 
             const packages = await packageDiscovery.discoverPackages('/test/project');
 
@@ -85,8 +94,8 @@ describe('PackageDiscovery', () => {
         });
 
         it('should discover packages from node_modules', async () => {
-            mockFileNotExists(mockFS, 'package-lock.json');
-            mockFileExists(mockFS, 'node_modules');
+            mockFileNotExists(mockFS, `${projectPath}/package-lock.json`);
+            mockFileExists(mockFS, `${projectPath}/node_modules`);
 
             // Mock node_modules directory structure
             mockFS.readdir.mockImplementation((path: string, options: any) => {
@@ -106,11 +115,12 @@ describe('PackageDiscovery', () => {
             });
 
             // Mock package.json files
-            mockFS.readFile.mockImplementation((path: string) => {
-                if (path.includes('lodash/package.json')) {
+            mockFS.readFile.mockImplementation((filePath: string) => {
+                const normalizedPath = filePath.replace(/\\/g, '/');
+                if (normalizedPath.includes('lodash/package.json')) {
                     return Promise.resolve(JSON.stringify({ name: 'lodash', version: '4.17.19' }));
                 }
-                if (path.includes('@types/node/package.json')) {
+                if (normalizedPath.includes('@types/node/package.json')) {
                     return Promise.resolve(JSON.stringify({ name: '@types/node', version: '18.0.0' }));
                 }
                 return Promise.reject(new Error('File not found'));
@@ -119,21 +129,23 @@ describe('PackageDiscovery', () => {
             const packages = await packageDiscovery.discoverPackages('/test/project');
 
             expect(packages.size).toBe(2);
-            expect(packages.get('lodash')).toEqual({
+            expect(packages.get('lodash')).toEqual(expect.objectContaining({
                 name: 'lodash',
                 version: '4.17.19',
-                source: 'node_modules'
-            });
-            expect(packages.get('@types/node')).toEqual({
+                source: 'node_modules',
+                reason: expect.stringContaining('package.json -> node_modules/lodash/package.json')
+            }));
+            expect(packages.get('@types/node')).toEqual(expect.objectContaining({
                 name: '@types/node',
                 version: '18.0.0',
-                source: 'node_modules'
-            });
+                source: 'node_modules',
+                reason: expect.stringContaining('package.json -> node_modules/@types/node/package.json')
+            }));
         });
 
         it('should prioritize package-lock.json over node_modules', async () => {
             // Package exists in both package-lock and node_modules
-            mockFileExists(mockFS, 'package-lock.json', JSON.stringify({
+            mockFileExists(mockFS, `${projectPath}/package-lock.json`, JSON.stringify({
                 packages: {
                     'node_modules/lodash': {
                         name: 'lodash',
@@ -142,13 +154,14 @@ describe('PackageDiscovery', () => {
                 }
             }));
 
-            mockFileExists(mockFS, 'node_modules');
+            mockFileExists(mockFS, `${projectPath}/node_modules`);
             mockFS.readdir.mockResolvedValue([
                 { name: 'lodash', isDirectory: () => true }
             ]);
             // Make readFile handle both package-lock and package.json paths
             mockFS.readFile.mockImplementation((filePath: string) => {
-                if (filePath.includes('package-lock.json')) {
+                const normalizedPath = filePath.replace(/\\/g, '/');
+                if (normalizedPath.includes('package-lock.json')) {
                     return Promise.resolve(JSON.stringify({
                         packages: {
                             'node_modules/lodash': {
@@ -158,7 +171,7 @@ describe('PackageDiscovery', () => {
                         }
                     }));
                 }
-                if (filePath.includes('lodash/package.json')) {
+                if (normalizedPath.includes('lodash/package.json')) {
                     return Promise.resolve(JSON.stringify({ name: 'lodash', version: '4.17.20' }));
                 }
                 return Promise.reject(new Error('File not found'));
@@ -168,23 +181,25 @@ describe('PackageDiscovery', () => {
 
             expect(packages.size).toBe(1);
             // Should use version from package-lock, not node_modules
-            expect(packages.get('lodash')).toEqual({
+            expect(packages.get('lodash')).toEqual(expect.objectContaining({
                 name: 'lodash',
                 version: '4.17.19',
-                source: 'package-lock'
-            });
+                source: 'package-lock',
+                reason: expect.stringContaining('packages["node_modules/lodash"]')
+            }));
         });
 
         it('should handle malformed package.json files', async () => {
-            mockFileNotExists(mockFS, 'package-lock.json');
-            mockFileExists(mockFS, 'node_modules');
+            mockFileNotExists(mockFS, `${projectPath}/package-lock.json`);
+            mockFileExists(mockFS, `${projectPath}/node_modules`);
 
             mockFS.readdir.mockResolvedValue([
                 { name: 'bad-package', isDirectory: () => true }
             ]);
 
-            mockFS.readFile.mockImplementation((path: string) => {
-                if (path.includes('bad-package/package.json')) {
+            mockFS.readFile.mockImplementation((filePath: string) => {
+                const normalizedPath = filePath.replace(/\\/g, '/');
+                if (normalizedPath.includes('bad-package/package.json')) {
                     return Promise.resolve('{ invalid json }');
                 }
                 return Promise.reject(new Error('File not found'));
@@ -209,6 +224,13 @@ describe('PackageDiscovery', () => {
 
             expect(discovery.extractNameFromPath('node_modules/@types/node')).toBe('@types/node');
             expect(discovery.extractNameFromPath('node_modules/@babel/core')).toBe('@babel/core');
+        });
+
+        it('should extract nested package-lock paths', () => {
+            const discovery = new PackageDiscovery() as any;
+
+            expect(discovery.extractNameFromPath('node_modules/vite/node_modules/picomatch')).toBe('picomatch');
+            expect(discovery.extractNameFromPath('node_modules/vite/node_modules/@scope/pkg')).toBe('@scope/pkg');
         });
     });
 });

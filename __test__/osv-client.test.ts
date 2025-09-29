@@ -93,7 +93,8 @@ describe('OSVClient', () => {
             const manyPackages = Array.from({ length: 150 }, (_, i) => ({
                 name: `package-${i}`,
                 version: '1.0.0',
-                source: 'package-lock' as const
+                source: 'package-lock' as const,
+                reason: 'Test package'
             }));
 
             const batchResponse1 = {
